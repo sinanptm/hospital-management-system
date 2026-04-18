@@ -1,0 +1,25 @@
+# Git metadata is not needed in image build context.
+.git
+.gitignore
+
+# Node dependencies are installed inside image layers.
+**/node_modules
+
+# Build artifacts should not be copied from host.
+**/.next
+**/dist
+
+# Local environment files should stay on host.
+.env*
+**/.env*
+!.env.client
+
+# OS/editor noise.
+.DS_Store
+.vscode
+.idea
+
+# Logs and temporary files.
+**/*.log
+**/*.tmp
+**/*.swp

@@ -121,6 +121,56 @@ pnpm install
 pnpm dev
 ```
 
+## 🐳 Docker (Full Stack)
+
+The project is now fully dockerized with:
+- `client` (Next.js)
+- `server` (Express + Socket.IO)
+- `mongodb` (MongoDB 7)
+
+### Docker Files Added
+- `client/Dockerfile`: multi-stage build with `development` and `production` targets
+- `server/Dockerfile`: multi-stage build with `development` and `production` targets
+- `docker-compose.yml`: base production-like stack
+- `docker-compose.dev.yml`: development override (hot reload + source mounts)
+- `.dockerignore`: keeps build context clean and secure
+
+### 1) Run in Development Mode (Hot Reload)
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+### 2) Run in Production-Like Mode
+```bash
+docker compose up --build -d
+```
+
+### 3) Open the App
+- Frontend: `http://localhost:3000`
+- Backend API: `http://localhost:8000/api`
+- MongoDB: `mongodb://localhost:27017`
+
+### 4) View Logs
+```bash
+docker compose logs -f
+```
+
+### 5) Stop Containers
+```bash
+docker compose down
+```
+
+### 6) Stop Containers + Remove DB Data
+```bash
+docker compose down -v
+```
+
+### Docker Notes
+- Docker Compose loads environment values from root `.env.server` and `.env.client`.
+- Client production image reads root `.env.client` during `next build` (copied internally to `client/.env.production`).
+- Inside Docker networking, `MONGODB_URL` is automatically pointed to `mongodb://mongodb:27017/AVM`.
+- If you use Stripe webhook testing locally, run Stripe CLI on your host machine and forward events to `http://localhost:8000/api/webhook`.
+
 
 ## ⚙️ Detailed Setup Guide
 

@@ -1,0 +1,57 @@
+# ----------------------------------------------------------------------------
+# Docker Compose (development override)
+# ----------------------------------------------------------------------------
+# This file overrides docker-compose.yml for local development:
+# - uses `development` targets from Dockerfiles
+# - mounts source code for live reload
+# - keeps node_modules inside named Docker volumes (important)
+#
+# Run with:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+# ----------------------------------------------------------------------------
+
+services:
+  server:
+    build:
+      # Use dev stage (nodemon + ts-node).
+      target: development
+
+    # In dev we keep NODE_ENV as development.
+    environment:
+      NODE_ENV: development
+
+    # Mount source so code changes on host reflect instantly in container.
+    volumes:
+      - ./server:/app/server
+
+      # Keep dependency store inside Docker volume to avoid host/OS mismatch
+      # issues (especially native binaries).
+      - server_node_modules:/app/node_modules
+
+    # Explicit command for readability when learning.
+    command: ["pnpm", "--filter", "./server", "dev"]
+
+
+  client:
+    build:
+      # Use dev stage (next dev).
+      target: development
+
+    environment:
+      NODE_ENV: development
+
+      # Disable telemetry noise in local Docker development.
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    # Mount source for hot reload while preserving container dependencies.
+    volumes:
+      - ./client:/app/client
+      - client_node_modules:/app/node_modules
+
+    command: ["pnpm", "--filter", "./client", "dev"]
+
+
+# Named volumes used only for dev dependency trees.
+volumes:
+  server_node_modules:
+  client_node_modules:

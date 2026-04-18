@@ -1,0 +1,120 @@
+# ----------------------------------------------------------------------------
+# Docker Compose (base file)
+# ----------------------------------------------------------------------------
+# This file is the default "production-like" setup:
+# - builds production targets from Dockerfiles
+# - runs MongoDB + API server + Next.js client
+# - exposes app on localhost:3000 and API on localhost:8000
+#
+# For local hot-reload development, combine this file with:
+#   docker-compose.dev.yml
+#
+# Example:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+# ----------------------------------------------------------------------------
+
+services:
+  # --------------------------------------------------------------------------
+  # MongoDB database
+  # --------------------------------------------------------------------------
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+
+    # Expose DB to host so you can inspect data with Compass/local tools.
+    ports:
+      - "27017:27017"
+
+    # Persist DB data between container restarts/rebuilds.
+    volumes:
+      - mongodb_data:/data/db
+
+    # Healthcheck allows app services to wait until DB is actually ready.
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+
+  # --------------------------------------------------------------------------
+  # Backend API service (Express + Socket.IO)
+  # --------------------------------------------------------------------------
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+
+      # Base compose uses production target.
+      # Dev override switches this to `development`.
+      target: production
+
+    restart: unless-stopped
+
+    # Load all server secrets/config from your existing env file.
+    env_file:
+      - .env.server
+
+    # Override values that must change inside Docker network.
+    environment:
+      # In Compose network, service name "mongodb" is the host to reach Mongo.
+      MONGODB_URL: mongodb://mongodb:27017/AVM
+
+      # Browser reaches client on host port 3000; server CORS should allow it.
+      CLIENT_URL: http://localhost:3000
+
+      # Keep explicit defaults for clarity.
+      PORT: 8000
+      NODE_ENV: production
+
+    # Wait for MongoDB healthcheck before starting server.
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+    # Expose API and Socket.IO endpoint to host.
+    ports:
+      - "8000:8000"
+
+
+  # --------------------------------------------------------------------------
+  # Frontend service (Next.js)
+  # --------------------------------------------------------------------------
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+
+      # Base compose uses production target.
+      # Dev override switches this to `development`.
+      target: production
+
+    restart: unless-stopped
+
+    # Load Next.js environment values from your existing env file.
+    env_file:
+      - .env.client
+
+    # Keep API URLs explicit for dockerized local environment.
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api
+      NEXT_PUBLIC_BASE_API_URL: http://localhost:8000
+
+    # Server should be up before client starts.
+    depends_on:
+      - server
+
+    # Expose frontend to host.
+    ports:
+      - "3000:3000"
+
+
+# ----------------------------------------------------------------------------
+# Named volumes
+# ----------------------------------------------------------------------------
+volumes:
+  # Stores Mongo data persistently.
+  mongodb_data:
+    name: avm_mongodb_data
